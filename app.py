@@ -2,22 +2,22 @@ import streamlit as st
 import requests
 import re
 
-# Sayfa ayarları - Ortalı ve temiz bir görünüm için
-st.set_page_config(page_title="Warden B2B Başvuru", page_icon="🏢", layout="centered")
+# Sayfa ayarları
+st.set_page_config(page_title="Warden Automations", page_icon="🛡️", layout="centered")
 
 # KENDİ n8n CANLI (PRODUCTION) WEBHOOK LİNKİNİ BURAYA YAPIŞTIR
 WEBHOOK_URL = "https://emotpl.app.n8n.cloud/webhook/592b53b7-5a00-46ed-be21-c25b1b7b2d62"
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
-# Tasarımı derleyip toparlayan ana blok
+# Tasarımı toparlayan ana blok
 with st.container():
-    # Formun kendisi
     with st.form("basvuru_formu", clear_on_submit=False):
-        # Başlık ve emojiyi tek satırda, jilet gibi ortalıyoruz
-        st.markdown("<h2 style='text-align: center;'>Kurumsal Başvuru Ekranı 🔗</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray;'>Warden AI Müşteri Nitelendirme Sistemi</p>", unsafe_allow_html=True)
-        st.write("") # Küçük bir boşluk
+        # Marka İsmi ve Kalkan - Kurumsal Ağırlık Burada
+        st.markdown("<h1 style='text-align: center;'>Warden Automations 🛡️</h1>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; color: #555;'>Kurumsal Başvuru ve Analiz Ekranı</h3>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray; font-style: italic;'>Yapay Zeka Destekli Müşteri Nitelendirme Sistemi</p>", unsafe_allow_html=True)
+        st.markdown("---")
         
         name = st.text_input("Ad Soyad")
         email = st.text_input("E-posta Adresi")
@@ -27,7 +27,7 @@ with st.container():
         st.write("")
         submit_button = st.form_submit_button("Warden Analizini Başlat 🚀", use_container_width=True)
 
-# Bildirimlerin formun hemen altında şık durması için
+# Bildirimler
 if submit_button:
     if not name or not email or not company_url:
         st.warning("⚠️ Lütfen analizden önce tüm alanları eksiksiz doldurun.")
