@@ -16,7 +16,7 @@ with st.container():
         # Marka İsmi ve Kalkan - Kurumsal Ağırlık Burada
         st.markdown("<h1 style='text-align: center;'>Warden Automations 🛡️</h1>", unsafe_allow_html=True)
         st.markdown("<h3 style='text-align: center; color: #555;'>Kurumsal Başvuru ve Analiz Ekranı</h3>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray; font-style: italic;'>Yapay Zeka Destekli Müşteri Nitelendirme Sistemi</p>", unsafe_allow_html=True)
+        st.markdown("<p style='text-align: center; color: gray; font-style: italic;'> Müşteri Nitelendirme Sistemi</p>", unsafe_allow_html=True)
         st.markdown("---")
         
         name = st.text_input("Ad Soyad")
