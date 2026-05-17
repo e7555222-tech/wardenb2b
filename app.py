@@ -17,7 +17,7 @@ with st.form("lead_form"):
     name = st.text_input("Ad Soyad")
     email = st.text_input("E-posta Adresi")
     company_url = st.text_input("Şirket Web Sitesi (Örn: stripe.com)")
-    budget = st.selectbox("Aylık Tahmini Pazarlama Bütçesi", ["Belirsiz", "$0 - $1.000", "$1.000 - $5.000", "$5.000+"])
+    budget = st.number_input("Planlanan Aylık Otomasyon Bütçesi (USD)", min_value=1000, value=15000, step=1000)
 
     # Gönder Butonu
     submitted = st.form_submit_button("Warden Analizini Başlat 🚀")
