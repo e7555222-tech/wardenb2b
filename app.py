@@ -37,7 +37,7 @@ if submitted:
             time.sleep(1.5)
             
             # --- BURASI N8N'E GİDEN KÖPRÜ ---
-            webhook_url = "https://emotpl.app.n8n.cloud/webhook-/592b53b7-5a00-46ed-be21-c25b1b7b2d62" 
+            webhook_url = "https://emotpl.app.n8n.cloud/webhook/592b53b7-5a00-46ed-be21-c25b1b7b2d62" 
             
             payload = {
                 "name": name,
