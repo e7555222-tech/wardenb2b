@@ -1,0 +1,15 @@
+[theme]
+# Ana Warden AI Rengi (Gönder butonu ve vurgular için kurumsal mavi)
+primaryColor="#4A90E2"
+
+# Arka Plan Rengi (Derin Kömür Grisi)
+backgroundColor="#121212"
+
+# Form ve Kutu Arka Planları (Hafif Açık Koyu Gri)
+secondaryBackgroundColor="#1E1E1E"
+
+# Yazı Rengi (Beyaz)
+textColor="#FFFFFF"
+
+# Yazı Tipi (Modern sans-serif)
+font="sans serif"
