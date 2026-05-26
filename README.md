@@ -5,7 +5,7 @@
 Müşterim AI, B2B işletmelerine gelen potansiyel müşteri (lead) verilerini saniyeler içinde analiz eden, bütçe/zaman çizelgelerine göre skorlayan ve satış ekibine aksiyon öneren otonom bir analiz panelidir.
 
 ## 📸 Demo
-![Müşterim AI Dashboard](screenshot.png)
+![Müşterim AI Dashboard](Screenshot.png)
 
 ## ⚡ Özellikler (Features)
 * **Gerçek Zamanlı Analiz (Real-time Scoring):** Gelen veriyi anında işler ve 0-100 arası bir nitelik skoru atar.
