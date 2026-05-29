@@ -1,20 +1,18 @@
+# Tek konteyner yerel geliştirme için (üretim: docker-compose.yml)
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Backend dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend
 COPY backend/ ./backend/
-
-# Copy frontend
-COPY app.py .
+COPY app.py config.py ./
 COPY pages/ ./pages/
+COPY .streamlit/ ./.streamlit/
 
-# Expose ports
+ENV API_URL=http://localhost:8000
+
 EXPOSE 8000 8501
 
-# Start both services
-CMD ["sh", "-c", "python backend/main.py & python -m streamlit run app.py --server.port=8501 --server.address=0.0.0.0"]
+CMD ["sh", "-c", "cd backend && uvicorn main:app --host 0.0.0.0 --port 8000 & streamlit run /app/app.py --server.port=8501 --server.address=0.0.0.0"]

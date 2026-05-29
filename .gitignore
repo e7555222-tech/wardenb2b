@@ -1,6 +1,12 @@
 .env
+*.db
 warden.db
+backend/warden.db
 __pycache__/
-*.pyc
+*.py[cod]
 .venv/
 venv/
+.streamlit/secrets.toml
+.DS_Store
+.idea/
+.vscode/

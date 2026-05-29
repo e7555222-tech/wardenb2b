@@ -62,22 +62,19 @@ cd wardenb2b
 pip install -r requirements.txt
 ```
 
-3. Environment variables ayarlayın (`.env` dosyası oluşturun):
-```env
-DATABASE_URL=sqlite:///./warden.db
-SECRET_KEY=your-secret-key-change-in-production
-OPENAI_API_KEY=your_openai_api_key_here
+3. Ortam değişkenlerini ayarlayın:
+```bash
+cp .env.example .env
 ```
 
 4. Backend'i başlatın:
 ```bash
 cd backend
-python main.py
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-5. Frontend'i başlatın (yeni terminal):
+5. Frontend'i başlatın (yeni terminal, repo kökünden):
 ```bash
-cd wardenb2b
 streamlit run app.py
 ```
 
@@ -88,29 +85,48 @@ streamlit run app.py
 
 ## 🐳 Docker Deployment
 
-### Docker Compose ile Başlatma
-
 ```bash
-docker-compose up -d
+cp .env.example .env
+# .env içinde N8N_WEBHOOK_URL, SECRET_KEY, WEBHOOK_SECRET doldurun
+docker compose up -d --build
 ```
 
-### Servisler
-- **Backend:** http://localhost:8000
-- **Frontend:** http://localhost:8501
-- **Database:** PostgreSQL (port 5432)
+| Servis | URL |
+|--------|-----|
+| Backend API | http://localhost:8000 |
+| Streamlit UI | http://localhost:8501 |
+| PostgreSQL | localhost:5432 |
 
-### Docker Durdurma
-```bash
-docker-compose down
-```
+Durdurmak için: `docker compose down`
 
 ## 🔑 Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | Database connection string | `sqlite:///./warden.db` |
-| `SECRET_KEY` | JWT secret key | `your-secret-key-change-in-production` |
-| `OPENAI_API_KEY` | OpenAI API key | - |
+| Variable | Açıklama |
+|----------|----------|
+| `API_URL` | Streamlit → FastAPI (Docker: `http://backend:8000`) |
+| `N8N_WEBHOOK_URL` | Lead analiz webhook (Streamlit) |
+| `DATABASE_URL` | SQLite veya PostgreSQL bağlantısı |
+| `SECRET_KEY` | JWT imzalama anahtarı |
+| `WEBHOOK_SECRET` | n8n → `/webhook/lead-score` header doğrulama (`X-Webhook-Secret`) |
+| `OPENAI_API_KEY` | n8n / OpenAI (opsiyonel, n8n tarafında) |
+
+### n8n skor geri çağrısı
+
+Analiz sonrası n8n'den şu endpoint'e **JSON POST** gönderin:
+
+`POST http://localhost:8000/webhook/lead-score`
+
+Header: `X-Webhook-Secret: <WEBHOOK_SECRET>`
+
+Body:
+```json
+{
+  "lead_id": 1,
+  "score": 85,
+  "sentiment": "Yüksek",
+  "action": "Hemen aranmalı"
+}
+```
 
 ## 📊 API Endpoint'leri
 

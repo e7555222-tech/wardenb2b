@@ -1,44 +1,44 @@
-version: '3.8'
-
 services:
   backend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://warden:warden123@db:5432/warden
-      - SECRET_KEY=your-secret-key-change-in-production
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      DATABASE_URL: postgresql://warden:warden123@db:5432/warden
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      CORS_ORIGINS: "*"
     depends_on:
-      - db
-    volumes:
-      - ./backend:/app/backend
-      - ./app.py:/app/app.py
-      - ./pages:/app/pages
+      db:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
     ports:
       - "8501:8501"
     environment:
-      - API_URL=http://backend:8000
+      API_URL: http://backend:8000
+      N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
     depends_on:
       - backend
-    volumes:
-      - ./app.py:/app/app.py
-      - ./pages:/app/pages
-    command: ["python", "-m", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
     restart: unless-stopped
 
   db:
     image: postgres:15-alpine
     environment:
-      - POSTGRES_USER=warden
-      - POSTGRES_PASSWORD=warden123
-      - POSTGRES_DB=warden
+      POSTGRES_USER: warden
+      POSTGRES_PASSWORD: warden123
+      POSTGRES_DB: warden
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     restart: unless-stopped
 
 volumes:
