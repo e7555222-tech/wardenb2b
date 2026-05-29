@@ -3,47 +3,112 @@ import requests
 import re
 
 # Sayfa ayarları
-st.set_page_config(page_title="Warden Automations", page_icon="🛡️", layout="centered")
+st.set_page_config(page_title="Warden B2B - Giriş", page_icon="🛡️", layout="centered")
 
-# KENDİ n8n CANLI (PRODUCTION) WEBHOOK LİNKİNİ BURAYA YAPIŞTIR
-WEBHOOK_URL = "https://emotpl.app.n8n.cloud/webhook/592b53b7-5a00-46ed-be21-c25b1b7b2d62"
+API_URL = "http://localhost:8000"
 
 EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
 
-# Tasarımı toparlayan ana blok
-with st.container():
-    with st.form("basvuru_formu", clear_on_submit=False):
-        # Marka İsmi ve Kalkan - Kurumsal Ağırlık Burada
-        st.markdown("<h1 style='text-align: center;'>Warden Automations 🛡️</h1>", unsafe_allow_html=True)
-        st.markdown("<h3 style='text-align: center; color: #555;'>Kurumsal Başvuru ve Analiz Ekranı</h3>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: gray; font-style: italic;'> Müşteri Nitelendirme Sistemi</p>", unsafe_allow_html=True)
-        st.markdown("---")
-        
+# Session state
+if "token" not in st.session_state:
+    st.session_state.token = None
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+# Login kontrolü
+def check_login():
+    if st.session_state.token:
+        st.switch_page("pages/dashboard.py")
+
+check_login()
+
+# Tab seçimi
+tab1, tab2 = st.tabs(["Giriş Yap", "Kayıt Ol"])
+
+# Login Tab
+with tab1:
+    st.markdown("<h1 style='text-align: center;'>Warden B2B 🛡️</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #555;'>Giriş Yap</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    with st.form("login_form"):
+        email = st.text_input("E-posta Adresi")
+        password = st.text_input("Şifre", type="password")
+        submit_button = st.form_submit_button("Giriş Yap", use_container_width=True)
+    
+    if submit_button:
+        if not email or not password:
+            st.warning("⚠️ Lütfen tüm alanları doldurun.")
+        elif not EMAIL_REGEX.match(email):
+            st.error("❌ Lütfen geçerli bir e-posta adresi giriniz.")
+        else:
+            try:
+                with st.spinner("Giriş yapılıyor..."):
+                    response = requests.post(
+                        f"{API_URL}/token",
+                        data={"username": email, "password": password}
+                    )
+                
+                if response.status_code == 200:
+                    token_data = response.json()
+                    st.session_state.token = token_data["access_token"]
+                    
+                    # Kullanıcı bilgilerini al
+                    user_response = requests.get(
+                        f"{API_URL}/users/me",
+                        headers={"Authorization": f"Bearer {st.session_state.token}"}
+                    )
+                    if user_response.status_code == 200:
+                        st.session_state.user = user_response.json()
+                    
+                    st.success("✅ Giriş başarılı!")
+                    st.rerun()
+                else:
+                    st.error("❌ Hatalı e-posta veya şifre.")
+            except Exception as e:
+                st.error("❌ Bağlantı hatası oluştu. Backend'in çalıştığından emin olun.")
+
+# Register Tab
+with tab2:
+    st.markdown("<h1 style='text-align: center;'>Warden B2B 🛡️</h1>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #555;'>Kayıt Ol</h3>", unsafe_allow_html=True)
+    st.markdown("---")
+    
+    with st.form("register_form"):
         name = st.text_input("Ad Soyad")
         email = st.text_input("E-posta Adresi")
-        company_url = st.text_input("Şirket Web Sitesi (Örn: stripe.com)")
-        budget = st.number_input("Planlanan Aylık Otomasyon Bütçesi (USD)", min_value=1000, value=15000, step=1000)
-        
-        st.write("")
-        submit_button = st.form_submit_button("Warden Analizini Başlat 🚀", use_container_width=True)
-
-# Bildirimler
-if submit_button:
-    if not name or not email or not company_url:
-        st.warning("⚠️ Lütfen analizden önce tüm alanları eksiksiz doldurun.")
-    elif not EMAIL_REGEX.match(email):
-        st.error("❌ Lütfen geçerli bir e-posta adresi giriniz.")
-    else:
-        payload = {"name": name, "email": email, "company_url": company_url, "budget": budget}
-        try:
-            with st.spinner("Warden analiz ediyor..."):
-                response = requests.post(WEBHOOK_URL, json=payload)
-            
-            if response.status_code == 200:
-                st.success("✅ Başvurunuz iletildi! Warden iş başında.")
-                st.info("Analiz sonucu e-posta adresinize gönderilecektir.")
-                st.balloons()
-            else:
-                st.error(f"Hata Kodu: {response.status_code}")
-        except Exception as e:
-            st.error("Bağlantı hatası oluştu.")
+        company = st.text_input("Şirket (Opsiyonel)")
+        password = st.text_input("Şifre", type="password")
+        confirm_password = st.text_input("Şifre Tekrar", type="password")
+        submit_button = st.form_submit_button("Kayıt Ol", use_container_width=True)
+    
+    if submit_button:
+        if not name or not email or not password:
+            st.warning("⚠️ Lütfen zorunlu alanları doldurun.")
+        elif not EMAIL_REGEX.match(email):
+            st.error("❌ Lütfen geçerli bir e-posta adresi giriniz.")
+        elif password != confirm_password:
+            st.error("❌ Şifreler eşleşmiyor.")
+        elif len(password) < 6:
+            st.error("❌ Şifre en az 6 karakter olmalı.")
+        else:
+            try:
+                with st.spinner("Kayıt yapılıyor..."):
+                    response = requests.post(
+                        f"{API_URL}/register",
+                        json={
+                            "email": email,
+                            "password": password,
+                            "name": name,
+                            "company": company
+                        }
+                    )
+                
+                if response.status_code == 200:
+                    st.success("✅ Kayıt başarılı! Giriş yapabilirsiniz.")
+                elif response.status_code == 400:
+                    st.error("❌ Bu e-posta adresi zaten kayıtlı.")
+                else:
+                    st.error("❌ Kayıt hatası oluştu.")
+            except Exception as e:
+                st.error("❌ Bağlantı hatası oluştu. Backend'in çalıştığından emin olun.")
