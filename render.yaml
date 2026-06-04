@@ -43,5 +43,13 @@ services:
         # After first deploy, update this to your warden-backend Render URL:
         # e.g. https://warden-backend.onrender.com
         value: https://warden-backend.onrender.com
+      # n8n production webhook URL'i (deploy sırasında girilir):
+      # e.g. https://<hesabin>.app.n8n.cloud/webhook/warden-b2b-lead
       - key: N8N_WEBHOOK_URL
-        value: ""
+        sync: false
+      # Backend ile AYNI secret otomatik paylaşılır (n8n callback doğrulaması için):
+      - key: WEBHOOK_SECRET
+        fromService:
+          name: warden-backend
+          type: web
+          envVarKey: WEBHOOK_SECRET
