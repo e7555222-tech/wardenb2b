@@ -5,7 +5,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from config import API_URL
+from config import API_URL, REQUEST_TIMEOUT
 
 st.set_page_config(page_title="Warden B2B - Dashboard", page_icon="🛡️", layout="wide")
 
@@ -23,13 +23,13 @@ def logout():
 
 # ── Pre-fetch data ────────────────────────────────────────────────────────────
 try:
-    _leads_r = requests.get(f"{API_URL}/leads", headers=auth_headers, timeout=30)
+    _leads_r = requests.get(f"{API_URL}/leads", headers=auth_headers, timeout=REQUEST_TIMEOUT)
     all_leads = _leads_r.json() if _leads_r.status_code == 200 else []
 except requests.RequestException:
     all_leads = []
 
 try:
-    _sub_r = requests.get(f"{API_URL}/subscription", headers=auth_headers, timeout=30)
+    _sub_r = requests.get(f"{API_URL}/subscription", headers=auth_headers, timeout=REQUEST_TIMEOUT)
     sub = _sub_r.json() if _sub_r.status_code == 200 else None
 except requests.RequestException:
     sub = None
@@ -105,7 +105,7 @@ if pending_leads:
                 requests.post(
                     f"{API_URL}/leads/{lead['id']}/simulate-score",
                     headers=auth_headers,
-                    timeout=30,
+                    timeout=REQUEST_TIMEOUT,
                 )
                 progress_bar.progress((i + 1) / total_pending)
             st.success("✅ Tüm analizler tamamlandı!")
@@ -275,7 +275,7 @@ if all_leads:
                         resp = requests.post(
                             f"{API_URL}/leads/{selected['id']}/simulate-score",
                             headers=auth_headers,
-                            timeout=30,
+                            timeout=REQUEST_TIMEOUT,
                         )
                     if resp.status_code == 200:
                         st.success("✅ Analiz tamamlandı!")
