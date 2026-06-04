@@ -3,7 +3,7 @@ import re
 import requests
 import streamlit as st
 
-from config import API_URL
+from config import API_URL, REQUEST_TIMEOUT
 
 st.set_page_config(page_title="Warden B2B - Giriş", page_icon="🛡️", layout="centered")
 
@@ -41,11 +41,11 @@ with tab1:
             st.error("❌ Lütfen geçerli bir e-posta adresi giriniz.")
         else:
             try:
-                with st.spinner("Giriş yapılıyor..."):
+                with st.spinner("Giriş yapılıyor... (sunucu uykudaysa ilk açılış ~1 dakika sürebilir)"):
                     response = requests.post(
                         f"{API_URL}/token",
                         data={"username": email, "password": password},
-                        timeout=30,
+                        timeout=REQUEST_TIMEOUT,
                     )
 
                 if response.status_code == 200:
@@ -53,7 +53,7 @@ with tab1:
                     user_response = requests.get(
                         f"{API_URL}/users/me",
                         headers={"Authorization": f"Bearer {st.session_state.token}"},
-                        timeout=30,
+                        timeout=REQUEST_TIMEOUT,
                     )
                     if user_response.status_code == 200:
                         st.session_state.user = user_response.json()
@@ -97,7 +97,7 @@ with tab2:
                             "name": name,
                             "company": company or None,
                         },
-                        timeout=30,
+                        timeout=REQUEST_TIMEOUT,
                     )
 
                 if response.status_code == 200:

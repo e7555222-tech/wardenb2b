@@ -3,7 +3,7 @@ import re
 import requests
 import streamlit as st
 
-from config import API_URL, N8N_WEBHOOK_URL, WEBHOOK_CALLBACK_URL, WEBHOOK_SECRET
+from config import API_URL, N8N_WEBHOOK_URL, REQUEST_TIMEOUT, WEBHOOK_CALLBACK_URL, WEBHOOK_SECRET
 
 st.set_page_config(page_title="Warden B2B - Yeni Lead", page_icon="🛡️", layout="centered")
 
@@ -75,7 +75,7 @@ if submit_button:
                         "budget": budget,
                     },
                     headers=headers,
-                    timeout=30,
+                    timeout=REQUEST_TIMEOUT,
                 )
 
             if lead_response.status_code == 200:

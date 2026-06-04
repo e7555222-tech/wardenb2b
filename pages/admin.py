@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from config import API_URL
+from config import API_URL, REQUEST_TIMEOUT
 
 st.set_page_config(page_title="Warden B2B - Admin", page_icon="🛡️", layout="wide")
 
@@ -12,7 +12,7 @@ if "token" not in st.session_state or not st.session_state.token:
 auth_headers = {"Authorization": f"Bearer {st.session_state.token}"}
 
 try:
-    user_response = requests.get(f"{API_URL}/users/me", headers=auth_headers, timeout=30)
+    user_response = requests.get(f"{API_URL}/users/me", headers=auth_headers, timeout=REQUEST_TIMEOUT)
     if user_response.status_code != 200:
         st.error("Kullanıcı bilgisi alınamadı.")
         st.switch_page("pages/dashboard.py")
@@ -45,7 +45,7 @@ tab_users, tab_leads = st.tabs(["👥 Kullanıcılar", "📋 Lead'ler"])
 with tab_users:
     st.subheader("Tüm Kullanıcılar")
     try:
-        users_response = requests.get(f"{API_URL}/admin/users", headers=auth_headers, timeout=30)
+        users_response = requests.get(f"{API_URL}/admin/users", headers=auth_headers, timeout=REQUEST_TIMEOUT)
         if users_response.status_code == 200:
             users = users_response.json()
             if users:
@@ -73,7 +73,7 @@ with tab_users:
                                 resp = requests.put(
                                     f"{API_URL}/admin/users/{selected_user['id']}/make-admin",
                                     headers=auth_headers,
-                                    timeout=30,
+                                    timeout=REQUEST_TIMEOUT,
                                 )
                                 if resp.status_code == 200:
                                     st.success("✅ Kullanıcı admin yapıldı!")
@@ -94,7 +94,7 @@ with tab_users:
                                 f"{API_URL}/admin/users/{selected_user['id']}/upgrade-tier",
                                 json={"tier": new_tier},
                                 headers=auth_headers,
-                                timeout=30,
+                                timeout=REQUEST_TIMEOUT,
                             )
                             if resp.status_code == 200:
                                 st.success(f"✅ Plan güncellendi: {tier_options[new_tier]}")
@@ -107,7 +107,7 @@ with tab_users:
                             resp = requests.delete(
                                 f"{API_URL}/admin/users/{selected_user['id']}",
                                 headers=auth_headers,
-                                timeout=30,
+                                timeout=REQUEST_TIMEOUT,
                             )
                             if resp.status_code == 200:
                                 st.success("✅ Kullanıcı silindi!")
@@ -123,7 +123,7 @@ with tab_users:
 with tab_leads:
     st.subheader("Tüm Lead'ler")
     try:
-        leads_response = requests.get(f"{API_URL}/admin/leads", headers=auth_headers, timeout=30)
+        leads_response = requests.get(f"{API_URL}/admin/leads", headers=auth_headers, timeout=REQUEST_TIMEOUT)
         if leads_response.status_code == 200:
             leads = leads_response.json()
             if leads:

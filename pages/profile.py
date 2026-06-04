@@ -1,7 +1,7 @@
 import requests
 import streamlit as st
 
-from config import API_URL
+from config import API_URL, REQUEST_TIMEOUT
 
 st.set_page_config(page_title="Warden B2B - Profil", page_icon="🛡️", layout="centered")
 
@@ -26,7 +26,7 @@ st.markdown("<h1 style='text-align: center;'>Profil Düzenleme 🛡️</h1>", un
 st.markdown("---")
 
 try:
-    user_response = requests.get(f"{API_URL}/users/me", headers=auth_headers, timeout=30)
+    user_response = requests.get(f"{API_URL}/users/me", headers=auth_headers, timeout=REQUEST_TIMEOUT)
 
     if user_response.status_code != 200:
         st.error("Kullanıcı bilgisi alınamadı.")
@@ -58,7 +58,7 @@ try:
                     f"{API_URL}/users/me",
                     json={"name": new_name, "company": new_company},
                     headers=auth_headers,
-                    timeout=30,
+                    timeout=REQUEST_TIMEOUT,
                 )
                 if response.status_code == 200:
                     st.session_state.user = response.json()
@@ -94,7 +94,7 @@ try:
                         "new_password": new_password,
                     },
                     headers=auth_headers,
-                    timeout=30,
+                    timeout=REQUEST_TIMEOUT,
                 )
                 if response.status_code == 200:
                     st.success("✅ Şifre değiştirildi. Lütfen tekrar giriş yapın.")
