@@ -1,4 +1,5 @@
 import os
+import random
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -36,6 +37,36 @@ DEMO_SEED = os.getenv("DEMO_SEED", "false").lower() == "true"
 
 _DEMO_EMAIL = "demo@warden.app"
 _DEMO_PASSWORD = "Demo1234!"
+
+_SIMULATE_ACTIONS = {
+    (85, 100): "Hemen aranmalı",
+    (70, 85): "Bu hafta takip et",
+    (50, 70): "Demo planla",
+    (35, 50): "Daha fazla bilgi gerekli",
+    (0, 35): "Bekle - bütçe yetersiz",
+}
+
+
+def _simulate_score_for_budget(budget: float, seed: int) -> tuple[int, str, str]:
+    rng = random.Random(seed * 31337)
+    if budget >= 30000:
+        score = rng.randint(75, 97)
+    elif budget >= 15000:
+        score = rng.randint(60, 85)
+    elif budget >= 8000:
+        score = rng.randint(45, 72)
+    else:
+        score = rng.randint(20, 55)
+
+    sentiment = "Yüksek" if score >= 75 else ("Orta" if score >= 50 else "Düşük")
+
+    action = "Bekle - bütçe yetersiz"
+    for (lo, hi), act in _SIMULATE_ACTIONS.items():
+        if lo <= score < hi:
+            action = act
+            break
+
+    return score, sentiment, action
 
 
 def _seed_admin() -> None:
@@ -153,6 +184,8 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Too many requests."})
 
 
+# ── Pydantic Schemas ──────────────────────────────────────────────────────────
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -225,6 +258,17 @@ class LeadScoreWebhook(BaseModel):
     score: int
     sentiment: str
     action: str
+
+
+class TierUpgrade(BaseModel):
+    tier: TierEnum
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@app.get("/")
+def root():
+    return {"app": "Warden B2B", "version": "1.0.0", "docs": "/docs", "health": "/health"}
 
 
 @app.get("/health")
@@ -339,8 +383,21 @@ def create_lead(
 
 
 @app.get("/leads", response_model=List[LeadResponse])
-def get_leads(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Lead).filter(Lead.user_id == current_user.id).order_by(Lead.created_at.desc()).all()
+def get_leads(
+    search: Optional[str] = None,
+    min_score: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Lead).filter(Lead.user_id == current_user.id)
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            Lead.name.ilike(term) | Lead.company_name.ilike(term) | Lead.email.ilike(term)
+        )
+    if min_score is not None:
+        query = query.filter(Lead.score >= min_score)
+    return query.order_by(Lead.created_at.desc()).all()
 
 
 @app.get("/leads/{lead_id}", response_model=LeadResponse)
@@ -348,6 +405,28 @@ def get_lead(lead_id: int, current_user: User = Depends(get_current_user), db: S
     lead = db.query(Lead).filter(Lead.id == lead_id, Lead.user_id == current_user.id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+    return lead
+
+
+@app.post("/leads/{lead_id}/simulate-score", response_model=LeadResponse)
+def simulate_lead_score(
+    lead_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    lead = db.query(Lead).filter(Lead.id == lead_id, Lead.user_id == current_user.id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+
+    if lead.score is not None:
+        return lead
+
+    score, sentiment, action = _simulate_score_for_budget(lead.budget, lead_id)
+    lead.score = score
+    lead.sentiment = sentiment
+    lead.action = action
+    db.commit()
+    db.refresh(lead)
     return lead
 
 
@@ -425,6 +504,21 @@ def make_user_admin(user_id: int, admin_user: User = Depends(get_current_admin),
     db.commit()
     db.refresh(user)
     return user
+
+
+@app.put("/admin/users/{user_id}/upgrade-tier")
+def upgrade_user_tier(
+    user_id: int,
+    body: TierUpgrade,
+    admin_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    subscription = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscription not found")
+    subscription.tier = body.tier
+    db.commit()
+    return {"status": "success", "user_id": user_id, "new_tier": body.tier.value}
 
 
 @app.delete("/admin/users/{user_id}")

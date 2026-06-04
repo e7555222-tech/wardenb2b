@@ -83,15 +83,17 @@ Birkaç dakika içinde her şey hazır:
 ## 🚀 Özellikler
 
 ### Kullanıcı Yönetimi
-- JWT tabanlı kayıt ve giriş
+- JWT tabanlı kayıt ve giriş (4 saatlik oturum)
 - Email + şifre değiştirme
 - Profil düzenleme
 
 ### Lead Yönetimi
 - Lead oluşturma formu (şirket, bütçe, web sitesi)
 - AI analiz entegrasyonu (n8n → OpenAI GPT-4)
+- **AI Simülasyon** — n8n olmadan tek tık lead skorlama (demo modu)
 - Gerçek zamanlı skor güncellemesi (webhook)
-- Dashboard: metrikler + filtrelenebilir tablo
+- Dashboard: metrikler + isim/şirket/email arama + min. skor filtresi
+- **Grafikler**: skor bar chart + sentiment donut chart (Altair)
 - CSV export
 
 ### Subscription Sistemi
@@ -104,6 +106,7 @@ Birkaç dakika içinde her şey hazır:
 ### Admin Paneli
 - Tüm kullanıcıları ve lead'leri görüntüleme
 - Kullanıcıya admin yetkisi verme
+- **Kullanıcı planını yükseltme** (Free → Pro → Enterprise)
 - Kullanıcı silme
 - Ortalama skor ve nitelik istatistikleri
 
@@ -236,14 +239,15 @@ startCommand = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
 
 | Katman | Teknoloji |
 |--------|-----------|
-| Frontend | Streamlit 1.32+ |
+| Frontend | Streamlit 1.32+ · Altair 5+ |
 | Backend | FastAPI 0.110+ |
 | ORM | SQLAlchemy 2.0 |
 | Veritabanı | SQLite (dev) · PostgreSQL 15 (prod) |
 | Auth | JWT (python-jose) · passlib pbkdf2_sha256 |
 | Rate Limiting | SlowAPI |
-| AI | OpenAI GPT-4 via n8n |
-| Deployment | Docker · Docker Compose |
+| AI | OpenAI GPT-4 via n8n · Built-in simülatör |
+| CI | GitHub Actions (Ruff lint + Docker validate) |
+| Deployment | Docker · Docker Compose · Render |
 
 ---
 
