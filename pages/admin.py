@@ -143,11 +143,11 @@ with tab_leads:
                 with col1:
                     st.metric("Toplam Lead", len(leads))
                 with col2:
-                    scored = [l for l in leads if l.get("score") is not None]
-                    avg = sum(l["score"] for l in scored) / len(scored) if scored else 0
+                    scored = [ld for ld in leads if ld.get("score") is not None]
+                    avg = sum(ld["score"] for ld in scored) / len(scored) if scored else 0
                     st.metric("Ortalama Skor", f"{avg:.1f}")
                 with col3:
-                    high = len([l for l in leads if l.get("score") and l["score"] >= 80])
+                    high = len([ld for ld in leads if ld.get("score") and ld["score"] >= 80])
                     st.metric("Yüksek Nitelik", high)
             else:
                 st.info("📋 Henüz lead kaydı yok.")

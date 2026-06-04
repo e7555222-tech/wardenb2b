@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 from contextlib import asynccontextmanager
@@ -9,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -23,11 +24,14 @@ from auth import (
     create_access_token,
     get_current_user,
     get_password_hash,
+    validate_password_strength,
     verify_password,
 )
 from database import SessionLocal, get_db, init_db
 from models import Lead, Subscription, SubscriptionStatus, TierEnum, User
 from tier_limits import tier_lead_limit
+
+logger = logging.getLogger("warden.api")
 
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
@@ -170,10 +174,15 @@ app = FastAPI(title="Warden B2B API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
+# CORS: "*" ile allow_credentials=True birlikte kullanılamaz (tarayıcılar reddeder
+# ve güvenlik açığıdır). Joker origin'de kimlik bilgilerini kapatıyoruz; belirli
+# origin listesi verildiğinde kimlik bilgilerine izin veriyoruz.
+_cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+_allow_credentials = "*" not in _cors_origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
-    allow_credentials=True,
+    allow_origins=_cors_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -206,8 +215,7 @@ class UserResponse(BaseModel):
     is_admin: bool
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class LeadCreate(BaseModel):
@@ -230,8 +238,7 @@ class LeadResponse(BaseModel):
     action: Optional[str] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Token(BaseModel):
@@ -283,6 +290,8 @@ def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
+    validate_password_strength(user.password)
+
     new_user = User(
         email=user.email,
         password_hash=get_password_hash(user.password),
@@ -301,7 +310,8 @@ def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/token", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == form_data.username).first()
     if not user or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -346,8 +356,7 @@ def change_password(
 ):
     if not verify_password(body.current_password, current_user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
-    if len(body.new_password) < 6:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 6 characters")
+    validate_password_strength(body.new_password)
 
     current_user.password_hash = get_password_hash(body.new_password)
     current_user.reset_token = None
@@ -422,27 +431,6 @@ def simulate_lead_score(
         return lead
 
     score, sentiment, action = _simulate_score_for_budget(lead.budget, lead_id)
-    lead.score = score
-    lead.sentiment = sentiment
-    lead.action = action
-    db.commit()
-    db.refresh(lead)
-    return lead
-
-
-@app.put("/leads/{lead_id}/score", response_model=LeadResponse)
-def update_lead_score(
-    lead_id: int,
-    score: int,
-    sentiment: str,
-    action: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    lead = db.query(Lead).filter(Lead.id == lead_id, Lead.user_id == current_user.id).first()
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-
     lead.score = score
     lead.sentiment = sentiment
     lead.action = action
@@ -526,26 +514,40 @@ def delete_user(user_id: int, admin_user: User = Depends(get_current_admin), db:
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    db.delete(user)
+    if user.id == admin_user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot delete your own account")
+    if user.is_admin:
+        remaining_admins = db.query(User).filter(User.is_admin.is_(True), User.id != user.id).count()
+        if remaining_admins == 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete the last remaining admin",
+            )
+    db.delete(user)  # İlişkili lead'ler ve abonelik cascade ile silinir
     db.commit()
     return {"status": "success", "message": "User deleted"}
 
 
 @app.post("/password-reset/request")
-def request_password_reset(body: PasswordResetRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def request_password_reset(request: Request, body: PasswordResetRequest, db: Session = Depends(get_db)):
+    # Hesap numaralandırmasını (enumeration) önlemek için yanıt her durumda aynıdır.
+    generic_response = {"message": "If this email is registered, a reset link was sent"}
+
     user = db.query(User).filter(User.email == body.email).first()
     if not user:
-        return {"message": "If this email is registered, a reset link was sent"}
+        return generic_response
 
     reset_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
     user.reset_token = reset_token
     user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
     db.commit()
 
-    return {
-        "message": "Reset token created (email delivery not configured)",
-        "reset_token": reset_token,
-    }
+    # GÜVENLİK: Token asla HTTP yanıtında dönülmez. E-posta gönderimi yapılandırılana
+    # kadar token yalnızca sunucu loglarına yazılır (geliştirme kolaylığı için).
+    logger.info("Password reset token for %s: %s", user.email, reset_token)
+
+    return generic_response
 
 
 @app.post("/password-reset/confirm")
@@ -565,8 +567,7 @@ def confirm_password_reset(body: PasswordResetConfirm, db: Session = Depends(get
     if user.reset_token != body.token or user.reset_token_expires < datetime.utcnow():
         raise HTTPException(status_code=400, detail="Invalid or expired token")
 
-    if len(body.new_password) < 6:
-        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+    validate_password_strength(body.new_password)
 
     user.password_hash = get_password_hash(body.new_password)
     user.reset_token = None

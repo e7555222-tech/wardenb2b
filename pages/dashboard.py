@@ -34,8 +34,8 @@ try:
 except requests.RequestException:
     sub = None
 
-scored_leads = [l for l in all_leads if l.get("score") is not None]
-pending_leads = [l for l in all_leads if l.get("score") is None]
+scored_leads = [ld for ld in all_leads if ld.get("score") is not None]
+pending_leads = [ld for ld in all_leads if ld.get("score") is None]
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
@@ -79,8 +79,8 @@ st.markdown("<h1 style='text-align:center;'>Warden B2B Dashboard 🛡️</h1>", 
 st.markdown("---")
 
 # ── Metrics ───────────────────────────────────────────────────────────────────
-avg_score = sum(l["score"] for l in scored_leads) / len(scored_leads) if scored_leads else 0
-high_quality = len([l for l in scored_leads if l["score"] >= 80])
+avg_score = sum(ld["score"] for ld in scored_leads) / len(scored_leads) if scored_leads else 0
+high_quality = len([ld for ld in scored_leads if ld["score"] >= 80])
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("📋 Toplam Lead", len(all_leads))
@@ -203,7 +203,9 @@ if all_leads:
             | df["email"].str.lower().str.contains(term, na=False)
         )
     if min_score_filter > 0:
-        mask &= (df["score"] >= min_score_filter) | df["score"].isna()
+        # Skoru olmayan (analiz bekleyen) lead'ler min-skor filtresine takılmaz —
+        # backend davranışıyla tutarlı.
+        mask &= df["score"].fillna(-1) >= min_score_filter
 
     filtered_df = df[mask].copy()
 

@@ -20,16 +20,18 @@ services:
         generateValue: true
       - key: WEBHOOK_SECRET
         generateValue: true
+      # Üretimde frontend Render URL'inizle değiştirin (örn. https://warden-frontend.onrender.com)
       - key: CORS_ORIGINS
-        value: "*"
+        sync: false
       - key: ADMIN_EMAIL
-        value: admin@warden.demo
+        sync: false
+      # Parola repoya yazılmaz; Render deploy sırasında değeri sorar.
       - key: ADMIN_PASSWORD
-        value: WardenAdmin2024!
+        sync: false
       - key: ADMIN_NAME
         value: Warden Admin
       - key: DEMO_SEED
-        value: "true"
+        value: "false"
 
   - type: web
     name: warden-frontend
