@@ -3,7 +3,7 @@ import re
 import requests
 import streamlit as st
 
-from config import API_URL, N8N_WEBHOOK_URL
+from config import API_URL, N8N_WEBHOOK_URL, WEBHOOK_CALLBACK_URL, WEBHOOK_SECRET
 
 st.set_page_config(page_title="Warden B2B - Yeni Lead", page_icon="🛡️", layout="centered")
 
@@ -92,6 +92,9 @@ if submit_button:
                             "budget": budget,
                             "lead_id": lead_id,
                             "user_id": st.session_state.user["id"],
+                            # n8n workflow'unun sonucu geri gönderebilmesi için
+                            "callback_url": WEBHOOK_CALLBACK_URL,
+                            "webhook_secret": WEBHOOK_SECRET,
                         }
                         webhook_response = requests.post(
                             N8N_WEBHOOK_URL, json=webhook_payload, timeout=60
