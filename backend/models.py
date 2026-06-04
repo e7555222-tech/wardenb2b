@@ -30,8 +30,10 @@ class User(Base):
     reset_token_expires = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
-    leads = relationship("Lead", back_populates="user")
-    subscription = relationship("Subscription", back_populates="user", uselist=False)
+    leads = relationship("Lead", back_populates="user", cascade="all, delete-orphan")
+    subscription = relationship(
+        "Subscription", back_populates="user", uselist=False, cascade="all, delete-orphan"
+    )
 
 class Lead(Base):
     __tablename__ = "leads"

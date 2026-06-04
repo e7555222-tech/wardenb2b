@@ -84,8 +84,8 @@ with tab2:
             st.error("❌ Lütfen geçerli bir e-posta adresi giriniz.")
         elif password != confirm_password:
             st.error("❌ Şifreler eşleşmiyor.")
-        elif len(password) < 6:
-            st.error("❌ Şifre en az 6 karakter olmalı.")
+        elif len(password) < 8 or not any(c.isalpha() for c in password) or not any(c.isdigit() for c in password):
+            st.error("❌ Şifre en az 8 karakter olmalı ve harf + rakam içermeli.")
         else:
             try:
                 with st.spinner("Kayıt yapılıyor..."):

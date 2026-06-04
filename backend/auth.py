@@ -1,4 +1,6 @@
+import logging
 import os
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -9,12 +11,40 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import User
 
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
+logger = logging.getLogger("warden.auth")
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    # Üretimde SECRET_KEY mutlaka ortam değişkeni ile verilmeli. Verilmediğinde
+    # bilinen bir sabit anahtara düşmek yerine geçici (ephemeral) bir anahtar
+    # üretiyoruz; böylece token sahteciliği önlenir. Yeniden başlatınca oturumlar
+    # geçersiz olur — bu kasıtlıdır ve sadece geliştirme içindir.
+    SECRET_KEY = secrets.token_urlsafe(64)
+    logger.warning(
+        "SECRET_KEY ortam değişkeni tanımlı değil. Geçici bir anahtar üretildi; "
+        "yeniden başlatmada tüm oturumlar geçersiz olur. Üretimde SECRET_KEY ayarlayın."
+    )
+
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 240  # 4 saat
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+
+MIN_PASSWORD_LENGTH = 8
 
 pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def validate_password_strength(password: str) -> None:
+    """Parola politikasını doğrular; ihlalde 400 fırlatır."""
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters",
+        )
+    if not any(c.isalpha() for c in password) or not any(c.isdigit() for c in password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must contain at least one letter and one digit",
+        )
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)

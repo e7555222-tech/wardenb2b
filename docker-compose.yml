@@ -22,14 +22,16 @@ services:
       dockerfile: Dockerfile.backend
     ports:
       - "8000:8000"
+    # UYARI: Aşağıdaki varsayılanlar yalnızca yerel geliştirme/demo içindir.
+    # Üretimde tüm bu değerleri .env üzerinden güçlü, gizli değerlerle geçersiz kılın.
     environment:
       DATABASE_URL: postgresql://warden:${POSTGRES_PASSWORD:-warden123}@db:5432/warden
-      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string-in-production}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY ortam degiskenini .env icinde ayarlayin}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-*}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@warden.demo}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-WardenAdmin2024!}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD ortam degiskenini .env icinde ayarlayin}
       ADMIN_NAME: ${ADMIN_NAME:-Warden Admin}
       DEMO_SEED: ${DEMO_SEED:-true}
     depends_on:

@@ -21,7 +21,23 @@ jobs:
         run: pip install ruff
 
       - name: Lint backend & pages
-        run: ruff check backend/ pages/ app.py config.py --ignore E501
+        run: ruff check backend/ pages/ app.py config.py tests/ --ignore E501
+
+  test:
+    name: Pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q
 
   docker-validate:
     name: Docker Compose Validate
@@ -30,4 +46,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate docker-compose.yml
+        env:
+          SECRET_KEY: ci-validation-only
+          ADMIN_PASSWORD: ci-validation-only
         run: docker compose config --quiet

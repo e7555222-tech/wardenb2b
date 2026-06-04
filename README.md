@@ -28,6 +28,9 @@ Uygulamayı hemen test etmek için:
 | **Demo Kullanıcı** | `demo@warden.app` | `Demo1234!` |
 
 > Demo kullanıcısı hesabında 5 adet önceden skorlanmış örnek lead bulunmaktadır.
+>
+> ⚠️ Bu bilgiler **yalnızca yerel demo** içindir (`DEMO_SEED=true`). Üretim dağıtımında
+> `ADMIN_PASSWORD` kendi gizli değerinizle ayarlanır ve `DEMO_SEED=false` olur.
 
 ---
 
@@ -36,8 +39,11 @@ Uygulamayı hemen test etmek için:
 ```bash
 git clone https://github.com/e7555222-tech/wardenb2b
 cd wardenb2b
+cp .env.example .env   # SECRET_KEY ve ADMIN_PASSWORD bu dosyadan okunur
 docker compose up -d --build
 ```
+
+> `.env` zorunludur: `SECRET_KEY` ve `ADMIN_PASSWORD` tanımlı değilse Compose başlamaz (güvenlik gereği).
 
 Birkaç dakika içinde her şey hazır:
 
@@ -83,7 +89,8 @@ Birkaç dakika içinde her şey hazır:
 ## 🚀 Özellikler
 
 ### Kullanıcı Yönetimi
-- JWT tabanlı kayıt ve giriş (4 saatlik oturum)
+- JWT tabanlı kayıt ve giriş (varsayılan 30 dakikalık oturum, `ACCESS_TOKEN_EXPIRE_MINUTES` ile ayarlanır)
+- Güçlü parola politikası (en az 8 karakter, harf + rakam)
 - Email + şifre değiştirme
 - Profil düzenleme
 
@@ -112,11 +119,15 @@ Birkaç dakika içinde her şey hazır:
 
 ### Güvenlik
 - `pbkdf2_sha256` şifre hash'leme
-- 30 dakika JWT token süresi
-- SlowAPI rate limiting (5 istek/dakika — register)
-- CORS middleware
-- SQLAlchemy ORM (SQL injection koruması)
+- Parola politikası (min. 8 karakter, harf + rakam)
+- 30 dakika JWT token süresi (yapılandırılabilir)
+- `SECRET_KEY` tanımsızsa sabit anahtar yerine geçici rastgele anahtar üretilir
+- SlowAPI rate limiting (register 5/dk, login 10/dk, parola sıfırlama 5/dk)
+- CORS middleware (joker origin'de kimlik bilgileri otomatik kapatılır)
+- SQLAlchemy ORM (SQL injection koruması) + cascade silme
 - Webhook secret doğrulama
+- Parola sıfırlama token'ı yanıtta dönülmez (yalnızca sunucu loglarında), hesap numaralandırması engellenir
+- Son admin'in / kendi hesabının silinmesi engellenir
 
 ---
 
@@ -150,7 +161,8 @@ streamlit run app.py
 | `API_URL` | Frontend → Backend URL | `http://localhost:8000` |
 | `N8N_WEBHOOK_URL` | Lead analiz webhook adresi | `https://n8n.io/webhook/...` |
 | `DATABASE_URL` | Veritabanı bağlantısı | `sqlite:///./warden.db` |
-| `SECRET_KEY` | JWT imzalama anahtarı | Rastgele uzun string |
+| `SECRET_KEY` | JWT imzalama anahtarı (üretimde zorunlu) | Rastgele uzun string |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | JWT erişim token süresi (dakika) | `30` |
 | `WEBHOOK_SECRET` | n8n callback doğrulama | Rastgele string |
 | `ADMIN_EMAIL` | Otomatik oluşturulacak admin e-postası | `admin@example.com` |
 | `ADMIN_PASSWORD` | Admin şifresi | `GüçlüŞifre123!` |
