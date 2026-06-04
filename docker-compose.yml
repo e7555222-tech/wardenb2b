@@ -1,4 +1,21 @@
 services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: warden
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-warden123}
+      POSTGRES_DB: warden
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warden -d warden"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: .
@@ -6,15 +23,25 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://warden:warden123@db:5432/warden
-      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      DATABASE_URL: postgresql://warden:${POSTGRES_PASSWORD:-warden123}@db:5432/warden
+      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string-in-production}
       WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      CORS_ORIGINS: "*"
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@warden.demo}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-WardenAdmin2024!}
+      ADMIN_NAME: ${ADMIN_NAME:-Warden Admin}
+      DEMO_SEED: ${DEMO_SEED:-true}
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   frontend:
     build:
@@ -26,19 +53,8 @@ services:
       API_URL: http://backend:8000
       N8N_WEBHOOK_URL: ${N8N_WEBHOOK_URL:-}
     depends_on:
-      - backend
-    restart: unless-stopped
-
-  db:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_USER: warden
-      POSTGRES_PASSWORD: warden123
-      POSTGRES_DB: warden
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+      backend:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

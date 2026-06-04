@@ -1,10 +1,11 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, Enum, ForeignKey, Boolean
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import DeclarativeBase, relationship
 from datetime import datetime
 import enum
 
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    pass
 
 class TierEnum(str, enum.Enum):
     FREE = "free"

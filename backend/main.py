@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from typing import List, Optional
 
@@ -23,19 +24,90 @@ from auth import (
     get_password_hash,
     verify_password,
 )
-from database import get_db, init_db
-from tier_limits import tier_lead_limit
+from database import SessionLocal, get_db, init_db
 from models import Lead, Subscription, SubscriptionStatus, TierEnum, User
+from tier_limits import tier_lead_limit
 
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
+ADMIN_NAME = os.getenv("ADMIN_NAME", "Admin")
+DEMO_SEED = os.getenv("DEMO_SEED", "false").lower() == "true"
+
+_DEMO_EMAIL = "demo@warden.app"
+_DEMO_PASSWORD = "Demo1234!"
+
+
+def _seed_admin() -> None:
+    if not ADMIN_EMAIL or not ADMIN_PASSWORD:
+        return
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == ADMIN_EMAIL).first()
+        if existing:
+            if not existing.is_admin:
+                existing.is_admin = True
+                db.commit()
+            return
+        admin = User(
+            email=ADMIN_EMAIL,
+            password_hash=get_password_hash(ADMIN_PASSWORD),
+            name=ADMIN_NAME,
+            is_admin=True,
+        )
+        db.add(admin)
+        db.commit()
+        db.refresh(admin)
+        db.add(Subscription(user_id=admin.id, tier=TierEnum.ENTERPRISE, status=SubscriptionStatus.ACTIVE))
+        db.commit()
+    finally:
+        db.close()
+
+
+def _seed_demo() -> None:
+    if not DEMO_SEED:
+        return
+    db = SessionLocal()
+    try:
+        if db.query(User).filter(User.email == _DEMO_EMAIL).first():
+            return
+        demo_user = User(
+            email=_DEMO_EMAIL,
+            password_hash=get_password_hash(_DEMO_PASSWORD),
+            name="Demo Kullanıcı",
+            company="Warden Demo A.Ş.",
+        )
+        db.add(demo_user)
+        db.commit()
+        db.refresh(demo_user)
+        db.add(Subscription(user_id=demo_user.id, tier=TierEnum.PRO, status=SubscriptionStatus.ACTIVE))
+        db.commit()
+        demo_leads = [
+            Lead(user_id=demo_user.id, name="Ahmet Yılmaz", email="ahmet@techstartup.com",
+                 company_name="TechStartup A.Ş.", company_url="techstartup.com",
+                 budget=20000, score=92, sentiment="Yüksek", action="Hemen aranmalı"),
+            Lead(user_id=demo_user.id, name="Selin Kaya", email="selin@dijitalajans.com",
+                 company_name="Dijital Ajans B", company_url="dijitalajans.com",
+                 budget=8000, score=71, sentiment="Orta", action="Bu hafta takip et"),
+            Lead(user_id=demo_user.id, name="Mehmet Demir", email="mehmet@uretim.com",
+                 company_name="Üretim Firması C", company_url=None,
+                 budget=35000, score=85, sentiment="Yüksek", action="Demo planla"),
+            Lead(user_id=demo_user.id, name="Ayşe Çelik", email="ayse@lojistik.com",
+                 company_name="Lojistik D Ltd.", company_url="lojistikd.com",
+                 budget=5000, score=42, sentiment="Düşük", action="Bekle - bütçe yetersiz"),
+            Lead(user_id=demo_user.id, name="Can Öztürk", email="can@fintech.io",
+                 company_name="FinTech E", company_url="fintech-e.io",
+                 budget=50000, score=97, sentiment="Yüksek", action="Aynı gün ara - öncelikli!"),
+        ]
+        db.add_all(demo_leads)
+        db.commit()
+    finally:
+        db.close()
 
 
 def get_current_admin(current_user: User = Depends(get_current_user)):
     if not current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
     return current_user
 
 
@@ -54,8 +126,16 @@ def enforce_lead_limit(user_id: int, subscription: Subscription, db: Session) ->
         )
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    _seed_admin()
+    _seed_demo()
+    yield
+
+
 limiter = Limiter(key_func=get_remote_address)
-app = FastAPI(title="Warden B2B API")
+app = FastAPI(title="Warden B2B API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 
@@ -70,10 +150,7 @@ app.add_middleware(
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
-    return JSONResponse(
-        status_code=429,
-        content={"detail": "Rate limit exceeded. Too many requests."},
-    )
+    return JSONResponse(status_code=429, content={"detail": "Rate limit exceeded. Too many requests."})
 
 
 class UserCreate(BaseModel):
@@ -150,9 +227,9 @@ class LeadScoreWebhook(BaseModel):
     action: str
 
 
-@app.on_event("startup")
-def startup_event():
-    init_db()
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "version": "1.0.0"}
 
 
 @app.post("/register", response_model=UserResponse)
@@ -160,10 +237,7 @@ def startup_event():
 def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(User).filter(User.email == user.email).first()
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
     new_user = User(
         email=user.email,
@@ -175,11 +249,7 @@ def register(request: Request, user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    subscription = Subscription(
-        user_id=new_user.id,
-        tier=TierEnum.FREE,
-        status=SubscriptionStatus.ACTIVE,
-    )
+    subscription = Subscription(user_id=new_user.id, tier=TierEnum.FREE, status=SubscriptionStatus.ACTIVE)
     db.add(subscription)
     db.commit()
 
@@ -231,15 +301,9 @@ def change_password(
     db: Session = Depends(get_db),
 ):
     if not verify_password(body.current_password, current_user.password_hash):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
     if len(body.new_password) < 6:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password must be at least 6 characters",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 6 characters")
 
     current_user.password_hash = get_password_hash(body.new_password)
     current_user.reset_token = None
@@ -254,14 +318,9 @@ def create_lead(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    subscription = (
-        db.query(Subscription).filter(Subscription.user_id == current_user.id).first()
-    )
+    subscription = db.query(Subscription).filter(Subscription.user_id == current_user.id).first()
     if not subscription or subscription.status != SubscriptionStatus.ACTIVE:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="No active subscription",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No active subscription")
 
     enforce_lead_limit(current_user.id, subscription, db)
 
@@ -280,29 +339,13 @@ def create_lead(
 
 
 @app.get("/leads", response_model=List[LeadResponse])
-def get_leads(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return (
-        db.query(Lead)
-        .filter(Lead.user_id == current_user.id)
-        .order_by(Lead.created_at.desc())
-        .all()
-    )
+def get_leads(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return db.query(Lead).filter(Lead.user_id == current_user.id).order_by(Lead.created_at.desc()).all()
 
 
 @app.get("/leads/{lead_id}", response_model=LeadResponse)
-def get_lead(
-    lead_id: int,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    lead = (
-        db.query(Lead)
-        .filter(Lead.id == lead_id, Lead.user_id == current_user.id)
-        .first()
-    )
+def get_lead(lead_id: int, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    lead = db.query(Lead).filter(Lead.id == lead_id, Lead.user_id == current_user.id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
     return lead
@@ -317,11 +360,7 @@ def update_lead_score(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    lead = (
-        db.query(Lead)
-        .filter(Lead.id == lead_id, Lead.user_id == current_user.id)
-        .first()
-    )
+    lead = db.query(Lead).filter(Lead.id == lead_id, Lead.user_id == current_user.id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
 
@@ -340,10 +379,7 @@ def webhook_update_lead_score(
     db: Session = Depends(get_db),
 ):
     if WEBHOOK_SECRET and x_webhook_secret != WEBHOOK_SECRET:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid webhook secret",
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook secret")
 
     lead = db.query(Lead).filter(Lead.id == payload.lead_id).first()
     if not lead:
@@ -359,13 +395,8 @@ def webhook_update_lead_score(
 
 
 @app.get("/subscription")
-def get_subscription(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    subscription = (
-        db.query(Subscription).filter(Subscription.user_id == current_user.id).first()
-    )
+def get_subscription(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    subscription = db.query(Subscription).filter(Subscription.user_id == current_user.id).first()
     if not subscription:
         raise HTTPException(status_code=404, detail="Subscription not found")
     return {
@@ -376,31 +407,20 @@ def get_subscription(
 
 
 @app.get("/admin/users", response_model=List[UserResponse])
-def get_all_users(
-    admin_user: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
+def get_all_users(admin_user: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     return db.query(User).order_by(User.created_at.desc()).all()
 
 
 @app.get("/admin/leads", response_model=List[LeadResponse])
-def get_all_leads(
-    admin_user: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
+def get_all_leads(admin_user: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     return db.query(Lead).order_by(Lead.created_at.desc()).all()
 
 
 @app.put("/admin/users/{user_id}/make-admin", response_model=UserResponse)
-def make_user_admin(
-    user_id: int,
-    admin_user: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
+def make_user_admin(user_id: int, admin_user: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
     user.is_admin = True
     db.commit()
     db.refresh(user)
@@ -408,15 +428,10 @@ def make_user_admin(
 
 
 @app.delete("/admin/users/{user_id}")
-def delete_user(
-    user_id: int,
-    admin_user: User = Depends(get_current_admin),
-    db: Session = Depends(get_db),
-):
+def delete_user(user_id: int, admin_user: User = Depends(get_current_admin), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
     db.delete(user)
     db.commit()
     return {"status": "success", "message": "User deleted"}
@@ -428,10 +443,7 @@ def request_password_reset(body: PasswordResetRequest, db: Session = Depends(get
     if not user:
         return {"message": "If this email is registered, a reset link was sent"}
 
-    reset_token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=timedelta(hours=1),
-    )
+    reset_token = create_access_token(data={"sub": user.email}, expires_delta=timedelta(hours=1))
     user.reset_token = reset_token
     user.reset_token_expires = datetime.utcnow() + timedelta(hours=1)
     db.commit()
@@ -460,10 +472,7 @@ def confirm_password_reset(body: PasswordResetConfirm, db: Session = Depends(get
         raise HTTPException(status_code=400, detail="Invalid or expired token")
 
     if len(body.new_password) < 6:
-        raise HTTPException(
-            status_code=400,
-            detail="Password must be at least 6 characters",
-        )
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
     user.password_hash = get_password_hash(body.new_password)
     user.reset_token = None
@@ -475,5 +484,4 @@ def confirm_password_reset(body: PasswordResetConfirm, db: Session = Depends(get
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

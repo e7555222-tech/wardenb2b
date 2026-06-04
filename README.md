@@ -1,195 +1,252 @@
-# 🧠 Warden B2B | SaaS Lead Nitelendirme Platformu
+# 🛡️ Warden B2B — AI-Powered Lead Scoring SaaS
 
-> **Warden Automations - AI Engine**
+<p align="center">
+  <img src="Screenshot.png" alt="Warden B2B Dashboard" width="800"/>
+</p>
 
-Warden B2B, B2B işletmelerine gelen potansiyel müşteri (lead) verilerini saniyeler içinde analiz eden, bütçe/zaman çizelgelerine göre skorlayan ve satış ekibine aksiyon öneren tam özellikli bir SaaS platformudur.
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-blue?logo=python" alt="Python"/>
+  <img src="https://img.shields.io/badge/FastAPI-0.110+-green?logo=fastapi" alt="FastAPI"/>
+  <img src="https://img.shields.io/badge/Streamlit-1.32+-red?logo=streamlit" alt="Streamlit"/>
+  <img src="https://img.shields.io/badge/PostgreSQL-15-blue?logo=postgresql" alt="PostgreSQL"/>
+  <img src="https://img.shields.io/badge/Docker-Compose-blue?logo=docker" alt="Docker"/>
+  <img src="https://img.shields.io/badge/License-MIT-yellow" alt="MIT"/>
+</p>
 
-## 📸 Demo
-![Warden B2B Dashboard](Screenshot.png)
+> B2B satış ekiplerine yönelik yapay zeka destekli lead nitelendirme platformu.  
+> Potansiyel müşteri verilerini saniyeler içinde analiz eder, skorlar ve aksiyonları önerir.
 
-## ⚡ Özellikler (Features)
+---
 
-### Temel Özellikler
-- **Kullanıcı Kayıt/Giriş Sistemi:** JWT tabanlı güvenli authentication
-- **Lead Yönetimi:** Lead oluşturma, listeleme ve detay görüntüleme
-- **AI Analiz Entegrasyonu:** n8n webhook ile OpenAI GPT-4 entegrasyonu
-- **Dashboard:** Gerçek zamanlı istatistikler ve lead geçmişi
-- **Subscription Tier'ları:** Free (10 lead), Pro (100 lead), Enterprise (Unlimited)
+## 🔑 Demo Erişim Bilgileri
 
-### Gelişmiş Özellikler
-- **Admin Paneli:** Tüm kullanıcıları ve lead'leri görüntüleme, yönetme
-- **Password Reset:** Email tabanlı şifre sıfırlama
-- **User Profile:** Profil düzenleme ve şifre değiştirme
-- **CSV Export:** Lead verilerini CSV olarak indirme
-- **API Rate Limiting:** Güvenlik için rate limiting
-- **CORS Support:** Cross-origin resource sharing
+Uygulamayı hemen test etmek için:
 
-## 🔄 Nasıl Çalışır? (The Pipeline)
+| Rol | E-posta | Şifre |
+|-----|---------|-------|
+| **Admin** | `admin@warden.demo` | `WardenAdmin2024!` |
+| **Demo Kullanıcı** | `demo@warden.app` | `Demo1234!` |
 
-1. **Kullanıcı Kayıt:** Kullanıcı kayıt olur, varsayılan Free tier atanır
-2. **Lead Oluşturma:** Kullanıcı yeni lead ekler, veri backend'e kaydedilir
-3. **AI Analiz:** Lead verisi n8n webhook'a gönderilir, OpenAI ile analiz edilir
-4. **Skor Güncelleme:** Analiz sonuçları (skor, sentiment, aksiyon) backend'e kaydedilir
-5. **Dashboard:** Kullanıcı dashboard'da lead'leri ve skorları görüntüler
+> Demo kullanıcısı hesabında 5 adet önceden skorlanmış örnek lead bulunmaktadır.
 
-## 🛠️ Tech Stack
+---
 
-- **Backend:** FastAPI + SQLAlchemy
-- **Frontend:** Streamlit
-- **Database:** SQLite (development) / PostgreSQL (production)
-- **Authentication:** JWT + pbkdf2_sha256
-- **Workflow Automation:** n8n
-- **AI Engine:** OpenAI GPT-4
-- **Security:** SlowAPI (rate limiting), CORS middleware
-- **Deployment:** Docker + Docker Compose
+## ⚡ Hızlı Başlangıç (Docker ile 1 Komut)
 
-## ⚙️ Kurulum (Local Setup)
-
-### Gereksinimler
-- Python 3.11+
-- pip
-
-### Adımlar
-
-1. Repoyu klonlayın:
 ```bash
 git clone https://github.com/e7555222-tech/wardenb2b
 cd wardenb2b
+docker compose up -d --build
 ```
 
-2. Dependencies yükleyin:
+Birkaç dakika içinde her şey hazır:
+
+| Servis | URL |
+|--------|-----|
+| 🖥️ Uygulama (Streamlit) | http://localhost:8501 |
+| ⚙️ Backend API | http://localhost:8000 |
+| 📖 API Dokümantasyonu | http://localhost:8000/docs |
+| 🗄️ PostgreSQL | localhost:5432 |
+
+**Durdurmak için:** `docker compose down`  
+**Veritabanı dahil temizlemek için:** `docker compose down -v`
+
+---
+
+## 🏗️ Mimari
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      Kullanıcı (Tarayıcı)               │
+└───────────────────────┬─────────────────────────────────┘
+                        │ :8501
+            ┌───────────▼────────────┐
+            │   Streamlit Frontend   │
+            │  app.py + pages/       │
+            └───────────┬────────────┘
+                        │ REST API (:8000)
+            ┌───────────▼────────────┐
+            │    FastAPI Backend     │
+            │  JWT Auth · Rate Limit │
+            │  Lead CRUD · Webhook   │
+            └──────┬─────────┬───────┘
+                   │         │
+        ┌──────────▼──┐   ┌──▼────────────────┐
+        │  PostgreSQL │   │    n8n Webhook     │
+        │  (SQLite    │   │  + OpenAI GPT-4   │
+        │  geliştirme)│   │  (opsiyonel)      │
+        └─────────────┘   └───────────────────┘
+```
+
+---
+
+## 🚀 Özellikler
+
+### Kullanıcı Yönetimi
+- JWT tabanlı kayıt ve giriş
+- Email + şifre değiştirme
+- Profil düzenleme
+
+### Lead Yönetimi
+- Lead oluşturma formu (şirket, bütçe, web sitesi)
+- AI analiz entegrasyonu (n8n → OpenAI GPT-4)
+- Gerçek zamanlı skor güncellemesi (webhook)
+- Dashboard: metrikler + filtrelenebilir tablo
+- CSV export
+
+### Subscription Sistemi
+| Tier | Lead Limiti | Açıklama |
+|------|------------|----------|
+| 🆓 Free | 10 | Ücretsiz başlangıç |
+| 💎 Pro | 100 | Büyüyen ekipler için |
+| 🏢 Enterprise | Sınırsız | Kurumsal kullanım |
+
+### Admin Paneli
+- Tüm kullanıcıları ve lead'leri görüntüleme
+- Kullanıcıya admin yetkisi verme
+- Kullanıcı silme
+- Ortalama skor ve nitelik istatistikleri
+
+### Güvenlik
+- `pbkdf2_sha256` şifre hash'leme
+- 30 dakika JWT token süresi
+- SlowAPI rate limiting (5 istek/dakika — register)
+- CORS middleware
+- SQLAlchemy ORM (SQL injection koruması)
+- Webhook secret doğrulama
+
+---
+
+## ⚙️ Yerel Geliştirme (Docker'sız)
+
 ```bash
+git clone https://github.com/e7555222-tech/wardenb2b
+cd wardenb2b
 pip install -r requirements.txt
-```
-
-3. Ortam değişkenlerini ayarlayın:
-```bash
 cp .env.example .env
+# .env içindeki değerleri düzenleyin
 ```
 
-4. Backend'i başlatın:
+**Backend:**
 ```bash
 cd backend
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-5. Frontend'i başlatın (yeni terminal, repo kökünden):
+**Frontend (yeni terminal, repo kökünden):**
 ```bash
 streamlit run app.py
 ```
 
-6. Tarayıcıda açın:
-- Frontend: http://localhost:8501
-- Backend API: http://localhost:8000
-- API Docs: http://localhost:8000/docs
+---
 
-## 🐳 Docker Deployment
+## 🔧 Ortam Değişkenleri
 
-```bash
-cp .env.example .env
-# .env içinde N8N_WEBHOOK_URL, SECRET_KEY, WEBHOOK_SECRET doldurun
-docker compose up -d --build
+| Değişken | Açıklama | Örnek |
+|----------|----------|-------|
+| `API_URL` | Frontend → Backend URL | `http://localhost:8000` |
+| `N8N_WEBHOOK_URL` | Lead analiz webhook adresi | `https://n8n.io/webhook/...` |
+| `DATABASE_URL` | Veritabanı bağlantısı | `sqlite:///./warden.db` |
+| `SECRET_KEY` | JWT imzalama anahtarı | Rastgele uzun string |
+| `WEBHOOK_SECRET` | n8n callback doğrulama | Rastgele string |
+| `ADMIN_EMAIL` | Otomatik oluşturulacak admin e-postası | `admin@example.com` |
+| `ADMIN_PASSWORD` | Admin şifresi | `GüçlüŞifre123!` |
+| `DEMO_SEED` | Demo veri oluşturulsun mu? | `true` / `false` |
+
+---
+
+## 🔄 AI Analiz Akışı (n8n + OpenAI)
+
 ```
+1. Kullanıcı lead oluşturur
+2. Frontend, n8n webhook'una veri gönderir
+3. n8n, OpenAI GPT-4 ile lead'i analiz eder
+4. n8n, sonuçları backend webhook'una POST eder:
 
-| Servis | URL |
-|--------|-----|
-| Backend API | http://localhost:8000 |
-| Streamlit UI | http://localhost:8501 |
-| PostgreSQL | localhost:5432 |
-
-Durdurmak için: `docker compose down`
-
-## 🔑 Environment Variables
-
-| Variable | Açıklama |
-|----------|----------|
-| `API_URL` | Streamlit → FastAPI (Docker: `http://backend:8000`) |
-| `N8N_WEBHOOK_URL` | Lead analiz webhook (Streamlit) |
-| `DATABASE_URL` | SQLite veya PostgreSQL bağlantısı |
-| `SECRET_KEY` | JWT imzalama anahtarı |
-| `WEBHOOK_SECRET` | n8n → `/webhook/lead-score` header doğrulama (`X-Webhook-Secret`) |
-| `OPENAI_API_KEY` | n8n / OpenAI (opsiyonel, n8n tarafında) |
-
-### n8n skor geri çağrısı
-
-Analiz sonrası n8n'den şu endpoint'e **JSON POST** gönderin:
-
-`POST http://localhost:8000/webhook/lead-score`
-
-Header: `X-Webhook-Secret: <WEBHOOK_SECRET>`
-
-Body:
-```json
-{
+POST /webhook/lead-score
+Header: X-Webhook-Secret: <WEBHOOK_SECRET>
+Body: {
   "lead_id": 1,
   "score": 85,
   "sentiment": "Yüksek",
   "action": "Hemen aranmalı"
 }
+
+5. Dashboard güncellenir
 ```
 
-## 📊 API Endpoint'leri
+---
 
-### Authentication
-- `POST /register` - Kullanıcı kayıt
-- `POST /token` - Login (JWT token)
-- `GET /users/me` - Mevcut kullanıcı bilgisi
+## 📋 API Endpoint'leri
 
-### Leads
-- `POST /leads` - Lead oluştur
-- `GET /leads` - Lead listesi
-- `GET /leads/{id}` - Lead detay
-- `PUT /leads/{id}/score` - Skor güncelle
+| Method | Endpoint | Açıklama | Auth |
+|--------|----------|----------|------|
+| `POST` | `/register` | Kayıt | — |
+| `POST` | `/token` | Giriş (JWT) | — |
+| `GET` | `/users/me` | Profil | ✅ |
+| `PUT` | `/users/me` | Profil güncelle | ✅ |
+| `POST` | `/users/me/change-password` | Şifre değiştir | ✅ |
+| `POST` | `/leads` | Lead oluştur | ✅ |
+| `GET` | `/leads` | Lead listesi | ✅ |
+| `GET` | `/leads/{id}` | Lead detay | ✅ |
+| `GET` | `/subscription` | Abonelik bilgisi | ✅ |
+| `POST` | `/webhook/lead-score` | AI skor güncelle | Secret |
+| `GET` | `/admin/users` | Tüm kullanıcılar | 👑 Admin |
+| `GET` | `/admin/leads` | Tüm lead'ler | 👑 Admin |
+| `PUT` | `/admin/users/{id}/make-admin` | Admin yap | 👑 Admin |
+| `DELETE` | `/admin/users/{id}` | Kullanıcı sil | 👑 Admin |
+| `GET` | `/health` | Sağlık kontrolü | — |
 
-### Admin
-- `GET /admin/users` - Tüm kullanıcılar
-- `GET /admin/leads` - Tüm lead'ler
-- `PUT /admin/users/{id}/make-admin` - Admin yap
-- `DELETE /admin/users/{id}` - Kullanıcı sil
+> Tam interaktif dokümantasyon: http://localhost:8000/docs
 
-### Password Reset
-- `POST /password-reset/request` - Reset talebi
-- `POST /password-reset/confirm` - Reset onay
+---
 
-### Webhook
-- `POST /webhook/lead-score` - n8n webhook (skor güncelleme)
+## ☁️ Cloud Deployment
 
-## 🔐 Güvenlik
+### Render (Ücretsiz)
 
-- **Password Hashing:** pbkdf2_sha256
-- **JWT Authentication:** 30 dakika token süresi
-- **Rate Limiting:** 5 istek/dakika (register endpoint)
-- **CORS:** Production'da spesifik domain'ler kullanılmalı
-- **SQL Injection Protection:** SQLAlchemy ORM
+```bash
+# Repo'yu Render'a bağlayın ve render.yaml otomatik okunur
+# https://render.com/deploy
+```
 
-## 📝 Subscription Tier'ları
+1. [render.com](https://render.com) → **New Blueprint**
+2. Bu repo'yu bağlayın → `render.yaml` otomatik algılanır
+3. Deploy tamamlandıktan sonra `warden-frontend` servisindeki  
+   `API_URL` değişkenini `warden-backend` URL'si ile güncelleyin
 
-| Tier | Lead Limit | Fiyat |
-|------|------------|-------|
-| Free | 10 lead | Ücretsiz |
-| Pro | 100 lead | $29/ay |
-| Enterprise | Unlimited | $99/ay |
+### Railway
 
-> ⚠️ Payment entegrasyonu (Stripe) henüz tamamlanmadı.
+```bash
+railway up
+```
 
-## 🚀 Deployment
+`railway.toml`:
+```toml
+[build]
+builder = "nixpacks"
 
-### Production Deployment için:
-1. PostgreSQL kullanın (SQLite production için önerilmez)
-2. Güçlü SECRET_KEY kullanın
-3. HTTPS kullanın
-4. CORS origin'leri kısıtlayın
-5. Environment variables'ı güvenli şekilde yönetin
-6. Monitoring/logging ekleyin
+[deploy]
+startCommand = "cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT"
+```
+
+---
+
+## 🛠️ Tech Stack
+
+| Katman | Teknoloji |
+|--------|-----------|
+| Frontend | Streamlit 1.32+ |
+| Backend | FastAPI 0.110+ |
+| ORM | SQLAlchemy 2.0 |
+| Veritabanı | SQLite (dev) · PostgreSQL 15 (prod) |
+| Auth | JWT (python-jose) · passlib pbkdf2_sha256 |
+| Rate Limiting | SlowAPI |
+| AI | OpenAI GPT-4 via n8n |
+| Deployment | Docker · Docker Compose |
+
+---
 
 ## 📄 Lisans
 
-MIT License
-
-## 🤝 Katkıda Bulunma
-
-Pull request'ler kabul edilir!
-
-## 📧 İletişim
-
-Sorularınız için: [e7555222-tech](https://github.com/e7555222-tech)
+MIT © [e7555222-tech](https://github.com/e7555222-tech)
